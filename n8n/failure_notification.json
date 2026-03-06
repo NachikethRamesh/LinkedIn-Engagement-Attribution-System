@@ -1,0 +1,152 @@
+{
+  "name": "failure_notification",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -620,
+        140
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pipeline-failure",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "2",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -390,
+        140
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst run = input.run || input;\nconst metrics = run.output_metrics_json || input.output_metrics_json || {};\nconst stages = metrics.stages || {};\nconst metricSummary = {\n  stage_order: metrics.stage_order || [],\n  stage_keys: Object.keys(stages),\n  identity_events_processed: (stages.identity_resolution || {}).events_processed ?? null,\n  scoring_rows_written: (stages.intent_scoring || {}).rows_written ?? null,\n  attribution_opportunities_processed: (stages.opportunity_attribution || {}).opportunities_processed ?? null\n};\nreturn [{\n  json: {\n    status: run.status || input.status || 'unknown',\n    run_id: run.run_id || input.run_id || null,\n    job_name: run.job_name || input.job_name || null,\n    trigger_source: run.trigger_source || input.trigger_source || null,\n    started_at: run.started_at || input.started_at || null,\n    completed_at: run.completed_at || input.completed_at || null,\n    duration_ms: run.duration_ms || input.duration_ms || null,\n    error_message: run.error_message || input.error_message || 'No error_message supplied',\n    output_metrics_json: metrics,\n    metric_summary: metricSummary,\n    notification_webhook_url: input.notification_webhook_url || 'https://example.com/replace-with-slack-or-email-webhook'\n  }\n}];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Is Failure Or Warning?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        140
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "or",
+          "conditions": [
+            {
+              "leftValue": "={{$json.status}}",
+              "rightValue": "failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{$json.status}}",
+              "rightValue": "warning",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        70,
+        70
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: $json.status, run_id: $json.run_id, job_name: $json.job_name, trigger_source: $json.trigger_source, duration_ms: $json.duration_ms, error_message: $json.error_message, metric_summary: $json.metric_summary, output_metrics_json: $json.output_metrics_json }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "5",
+      "name": "No Notification Needed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        70,
+        220
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "message",
+              "value": "Status is not failed/warning; no notification sent",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Is Failure Or Warning?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Failure Or Warning?": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Notification Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "active": false,
+  "versionId": "step7-failure-notify-v1"
+}

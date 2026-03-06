@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "target_type": "clay",
+      "entity_type": "account",
+      "entity_id": 1,
+      "enrichment_type": "firmographic_refresh",
+      "normalized_data_json": {
+        "company_size_band": "201-500",
+        "hq_country": "United States",
+        "industry": "B2B SaaS",
+        "linkedin_company_url": "https://www.linkedin.com/company/exampleco",
+        "confidence": 0.84
+      },
+      "source_run_id": "demo-writeback-run-001",
+      "notes": "Clay enrichment output normalized for local writeback"
+    }
+  ]
+}
+

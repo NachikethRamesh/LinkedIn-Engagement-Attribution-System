@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "target_type": "exa",
+      "entity_type": "account",
+      "entity_id": 2,
+      "enrichment_type": "research_brief",
+      "normalized_data_json": {
+        "priority_themes": [
+          "AI product launch",
+          "enterprise expansion",
+          "partner channel growth"
+        ],
+        "recent_signals": [
+          "Posted 2 engineering leadership openings",
+          "Announced SOC2 Type II update"
+        ],
+        "summary": "Company appears to be scaling GTM and technical hiring in Q1."
+      },
+      "source_run_id": "demo-writeback-run-002",
+      "notes": "Exa-style research summarized into normalized fields"
+    }
+  ]
+}
+

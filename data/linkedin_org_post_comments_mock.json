@@ -1,0 +1,37 @@
+{
+  "comments": [
+    {
+      "comment_id": "org-comment-1001",
+      "actor_name": "<REDACTED_NAME>",
+      "actor_linkedin_url": "https://www.linkedin.com/in/<REDACTED_PROFILE>/",
+      "actor_company_raw": "<REDACTED_COMPANY>",
+      "created_at": "2026-02-20T19:10:00Z",
+      "text": "Great breakdown. Curious how you handle aggregate-only sources."
+    },
+    {
+      "comment_id": "org-comment-1002",
+      "actor_name": "<REDACTED_NAME>",
+      "actor_linkedin_url": "https://www.linkedin.com/in/<REDACTED_PROFILE>/",
+      "actor_company_raw": "<REDACTED_COMPANY>",
+      "created_at": "2026-02-21T10:45:00Z",
+      "text": "This is exactly the kind of attribution model we needed."
+    },
+    {
+      "comment_id": "org-comment-1003",
+      "actor_name": null,
+      "actor_linkedin_url": null,
+      "actor_company_raw": null,
+      "created_at": "2026-02-21T17:05:00Z",
+      "text": "Following"
+    },
+    {
+      "comment_id": "org-comment-1004",
+      "parent_comment_id": "org-comment-1002",
+      "actor_name": "<REDACTED_NAME>",
+      "actor_linkedin_url": "https://www.linkedin.com/in/<REDACTED_PROFILE>/",
+      "actor_company_raw": "<REDACTED_COMPANY>",
+      "created_at": "2026-02-21T19:15:00Z",
+      "text": "We tested this and saw similar influence patterns."
+    }
+  ]
+}

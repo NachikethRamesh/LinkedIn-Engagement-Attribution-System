@@ -1,0 +1,1 @@
+"""Pipeline orchestration layer for stage jobs and API triggers."""

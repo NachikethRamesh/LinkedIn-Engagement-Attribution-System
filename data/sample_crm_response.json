@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "target_type": "crm",
+      "entity_type": "opportunity",
+      "entity_id": 1,
+      "enrichment_type": "activation_ack",
+      "normalized_data_json": {
+        "crm_record_id": "OPP-001-EXT",
+        "status": "queued_for_owner_review",
+        "owner_assignment": "sdr-team-east",
+        "next_step": "Attach social influence notes to opportunity timeline"
+      },
+      "source_run_id": "demo-writeback-run-003",
+      "notes": "CRM acknowledgment normalized for audit tracking"
+    }
+  ]
+}
+

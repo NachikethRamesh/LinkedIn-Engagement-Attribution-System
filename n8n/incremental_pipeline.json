@@ -1,0 +1,470 @@
+{
+  "name": "incremental_pipeline",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -680,
+        120
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "api_base_url",
+              "value": "http://127.0.0.1:8000",
+              "type": "string"
+            },
+            {
+              "name": "poll_interval_seconds",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "name": "max_poll_attempts",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "name": "source",
+              "value": "mock",
+              "type": "string"
+            },
+            {
+              "name": "posts",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "name": "events",
+              "value": 80,
+              "type": "number"
+            },
+            {
+              "name": "rebuild",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "name": "window_days",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "name": "notification_webhook_url",
+              "value": "https://example.com/replace-with-slack-or-email-webhook",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3",
+      "name": "GET /health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -470,
+        120
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$json.api_base_url + '/health'}}",
+        "options": {}
+      }
+    },
+    {
+      "id": "4",
+      "name": "Health OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -250,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.status}}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{$json.db}}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "POST /jobs/full-pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -20,
+        40
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node['Set Config'].json.api_base_url + '/jobs/full-pipeline'}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ source: $node['Set Config'].json.source, posts: $node['Set Config'].json.posts, events: $node['Set Config'].json.events, rebuild: $node['Set Config'].json.rebuild, window_days: $node['Set Config'].json.window_days }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "6",
+      "name": "Set Poll Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        40
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "api_base_url",
+              "value": "={{$node['Set Config'].json.api_base_url}}",
+              "type": "string"
+            },
+            {
+              "name": "poll_interval_seconds",
+              "value": "={{$node['Set Config'].json.poll_interval_seconds}}",
+              "type": "number"
+            },
+            {
+              "name": "max_poll_attempts",
+              "value": "={{$node['Set Config'].json.max_poll_attempts}}",
+              "type": "number"
+            },
+            {
+              "name": "notification_webhook_url",
+              "value": "={{$node['Set Config'].json.notification_webhook_url}}",
+              "type": "string"
+            },
+            {
+              "name": "run_id",
+              "value": "={{$json.run_id}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7",
+      "name": "Poll Until Terminal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        40
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst baseUrl = String(input.api_base_url || '').replace(/\\/$/, '');\nconst runId = input.run_id;\nconst pollIntervalSeconds = Number(input.poll_interval_seconds || 5);\nconst maxPollAttempts = Number(input.max_poll_attempts || 30);\nif (!baseUrl || !runId) throw new Error('api_base_url and run_id are required');\nlet attempts = 0;\nlet latest = null;\nwhile (attempts < maxPollAttempts) {\n  attempts += 1;\n  const response = await fetch(`${baseUrl}/jobs/${runId}`, { method: 'GET' });\n  if (!response.ok) throw new Error(`Polling failed with status ${response.status}`);\n  latest = await response.json();\n  if (latest.status === 'success' || latest.status === 'failed') {\n    return [{ json: { ...input, run: latest, final_status: latest.status, poll_attempts: attempts, timed_out: false } }];\n  }\n  await new Promise((resolve) => setTimeout(resolve, pollIntervalSeconds * 1000));\n}\nreturn [{ json: { ...input, run: latest, final_status: 'failed', poll_attempts: attempts, timed_out: true, timeout_reason: `Reached max poll attempts (${maxPollAttempts})` } }];"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Run Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        650,
+        40
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.final_status}}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9",
+      "name": "Metric Sanity Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        870,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "const payload = $input.first().json;\nconst run = payload.run || {};\nconst metrics = run.output_metrics_json || {};\nconst stages = metrics.stages || {};\nconst hasIngestion = Boolean(stages.linkedin_ingestion_mock || stages.linkedin_ingestion_csv);\nconst identity = stages.identity_resolution || {};\nconst scoring = stages.intent_scoring || {};\nconst attribution = stages.opportunity_attribution || {};\nconst issues = [];\nif (!hasIngestion) issues.push('Missing ingestion stage metrics');\nif ((identity.events_processed ?? 0) <= 0) issues.push('identity_resolution.events_processed <= 0');\nif ((scoring.rows_written ?? 0) <= 0) issues.push('intent_scoring.rows_written <= 0');\nif ((attribution.opportunities_processed ?? 0) <= 0) issues.push('opportunity_attribution.opportunities_processed <= 0');\nreturn [{ json: { ...payload, sanity_status: issues.length ? 'warning' : 'ok', sanity_issues: issues } }];"
+      }
+    },
+    {
+      "id": "10",
+      "name": "Sanity Warning?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1090,
+        -40
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.sanity_status}}",
+              "rightValue": "warning",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "11",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1310,
+        -130
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: 'success', workflow: $workflow.name, run_id: ($json.run || {}).run_id, job_name: ($json.run || {}).job_name, output_metrics_json: ($json.run || {}).output_metrics_json || {} }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "12",
+      "name": "Notify Warning",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1310,
+        -10
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: 'warning', workflow: $workflow.name, run_id: ($json.run || {}).run_id, sanity_issues: $json.sanity_issues || [], output_metrics_json: ($json.run || {}).output_metrics_json || {} }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "13",
+      "name": "Notify Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node['Set Config'].json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: 'failed', workflow: $workflow.name, run_id: ($json.run || {}).run_id, error_message: ($json.run || {}).error_message || $json.timeout_reason || 'Pipeline failed', output_metrics_json: ($json.run || {}).output_metrics_json || {} }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "14",
+      "name": "Notify Health Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -20,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node['Set Config'].json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: 'failed', workflow: $workflow.name, reason: 'Health check failed', health_payload: $json }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "GET /health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /health": {
+      "main": [
+        [
+          {
+            "node": "Health OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health OK?": {
+      "main": [
+        [
+          {
+            "node": "POST /jobs/full-pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Health Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /jobs/full-pipeline": {
+      "main": [
+        [
+          {
+            "node": "Set Poll Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Poll Payload": {
+      "main": [
+        [
+          {
+            "node": "Poll Until Terminal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Until Terminal": {
+      "main": [
+        [
+          {
+            "node": "Run Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Success?": {
+      "main": [
+        [
+          {
+            "node": "Metric Sanity Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metric Sanity Check": {
+      "main": [
+        [
+          {
+            "node": "Sanity Warning?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanity Warning?": {
+      "main": [
+        [
+          {
+            "node": "Notify Warning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "active": false,
+  "versionId": "step7-incremental-v1"
+}

@@ -1,0 +1,1 @@
+"""Deterministic identity resolution for social events."""

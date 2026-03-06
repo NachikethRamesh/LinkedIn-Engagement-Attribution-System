@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "target_type": "exa",
+      "entity_type": "unresolved_account_candidate",
+      "entity_id": 838330681557204225,
+      "enrichment_type": "account_resolution_research",
+      "normalized_data_json": {
+        "likely_company_name": "<REDACTED_COMPANY>",
+        "likely_domain": "placeholder-company.example",
+        "industry": "B2B Analytics Software",
+        "company_description": "Analytics platform focused on GTM reporting and pipeline intelligence.",
+        "recent_initiatives": [
+          "Expanded revops consulting partnerships",
+          "Published new attribution framework series"
+        ],
+        "hiring_or_growth_signals": "Hiring GTM analysts and partner managers",
+        "confidence_notes": "Moderate confidence from signal-context match and public domain references",
+        "possible_match_hints": {
+          "normalized_candidate_name": "northstar analytics",
+          "manual_review_recommended": true
+        }
+      },
+      "source_run_id": "demo-writeback-run-unresolved-001",
+      "notes": "Sample unresolved candidate Exa research result"
+    }
+  ]
+}

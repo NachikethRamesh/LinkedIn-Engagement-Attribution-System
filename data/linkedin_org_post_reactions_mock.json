@@ -1,0 +1,37 @@
+{
+  "reactions": [
+    {
+      "reaction_id": "org-reaction-2001",
+      "actor_name": "<REDACTED_NAME>",
+      "actor_linkedin_url": "https://www.linkedin.com/in/<REDACTED_PROFILE>/",
+      "actor_company_raw": "<REDACTED_COMPANY>",
+      "reaction_type": "like",
+      "created_at": "2026-02-20T16:10:00Z"
+    },
+    {
+      "reaction_id": "org-reaction-2002",
+      "actor_name": "<REDACTED_NAME>",
+      "actor_linkedin_url": "https://www.linkedin.com/in/<REDACTED_PROFILE>/",
+      "actor_company_raw": "<REDACTED_COMPANY>",
+      "reaction_type": "celebrate",
+      "created_at": "2026-02-20T16:25:00Z"
+    },
+    {
+      "reaction_id": "org-reaction-2003",
+      "actor_name": null,
+      "actor_linkedin_url": null,
+      "actor_company_raw": null,
+      "reaction_type": "like",
+      "created_at": "2026-02-20T17:02:00Z"
+    },
+    {
+      "reaction_id": "org-reaction-2004",
+      "target_comment_id": "org-comment-1002",
+      "actor_name": "<REDACTED_NAME>",
+      "actor_linkedin_url": "https://www.linkedin.com/in/<REDACTED_PROFILE>/",
+      "actor_company_raw": "<REDACTED_COMPANY>",
+      "reaction_type": "insightful",
+      "created_at": "2026-02-21T11:15:00Z"
+    }
+  ]
+}

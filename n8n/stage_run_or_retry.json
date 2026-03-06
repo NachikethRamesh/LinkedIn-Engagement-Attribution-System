@@ -1,0 +1,252 @@
+{
+  "name": "stage_run_or_retry",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -780,
+        140
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2",
+      "name": "Set Stage Inputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        140
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "api_base_url",
+              "value": "http://127.0.0.1:8000",
+              "type": "string"
+            },
+            {
+              "name": "stage_name",
+              "value": "intent_scoring",
+              "type": "string"
+            },
+            {
+              "name": "rebuild",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "name": "window_days",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "name": "source",
+              "value": "shield",
+              "type": "string"
+            },
+            {
+              "name": "file",
+              "value": "data/shield_sample.csv",
+              "type": "string"
+            },
+            {
+              "name": "delimiter",
+              "value": ",",
+              "type": "string"
+            },
+            {
+              "name": "posts",
+              "value": 20,
+              "type": "number"
+            },
+            {
+              "name": "events",
+              "value": 250,
+              "type": "number"
+            },
+            {
+              "name": "poll_interval_seconds",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "name": "max_poll_attempts",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "name": "max_run_retries",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "name": "notification_webhook_url",
+              "value": "https://example.com/replace-with-slack-or-email-webhook",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3",
+      "name": "Build Stage Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -340,
+        140
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst endpointByStage = {\n  linkedin_ingestion_csv: '/jobs/linkedin-ingestion/csv',\n  linkedin_ingestion_mock: '/jobs/linkedin-ingestion/mock',\n  identity_resolution: '/jobs/identity-resolution',\n  intent_scoring: '/jobs/intent-scoring',\n  opportunity_attribution: '/jobs/opportunity-attribution',\n};\nconst stage = input.stage_name;\nconst endpoint = endpointByStage[stage];\nif (!endpoint) throw new Error(`Unsupported stage_name: ${stage}`);\nlet body = {};\nif (stage === 'linkedin_ingestion_csv') {\n  if (!input.file) throw new Error('file is required for linkedin_ingestion_csv');\n  body = { source: input.source || 'shield', file: input.file, delimiter: input.delimiter || ',' };\n} else if (stage === 'linkedin_ingestion_mock') {\n  body = { posts: Number(input.posts || 20), events: Number(input.events || 250) };\n} else if (stage === 'opportunity_attribution') {\n  body = { rebuild: Boolean(input.rebuild || false), window_days: Number(input.window_days || 30) };\n} else {\n  body = { rebuild: Boolean(input.rebuild || false) };\n}\nreturn [{ json: { ...input, endpoint, request_body: body } }];"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Run Stage + Poll + Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -110,
+        140
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst baseUrl = String(input.api_base_url || '').replace(/\\/$/, '');\nconst endpoint = input.endpoint;\nconst requestBody = input.request_body || {};\nconst pollIntervalSeconds = Number(input.poll_interval_seconds || 5);\nconst maxPollAttempts = Number(input.max_poll_attempts || 30);\nconst maxRunRetries = Number(input.max_run_retries || 0);\nif (!baseUrl || !endpoint) throw new Error('api_base_url and endpoint are required');\nlet retry = 0;\nlet finalRun = null;\nlet failureReason = null;\nwhile (retry <= maxRunRetries) {\n  const startRes = await fetch(`${baseUrl}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });\n  if (!startRes.ok) {\n    failureReason = `Start request failed (${startRes.status})`;\n    retry += 1;\n    continue;\n  }\n  const started = await startRes.json();\n  const runId = started.run_id;\n  if (!runId) {\n    failureReason = 'Start request did not return run_id';\n    retry += 1;\n    continue;\n  }\n  let attempts = 0;\n  while (attempts < maxPollAttempts) {\n    attempts += 1;\n    const pollRes = await fetch(`${baseUrl}/jobs/${runId}`, { method: 'GET' });\n    if (!pollRes.ok) {\n      failureReason = `Polling failed with status ${pollRes.status}`;\n      break;\n    }\n    finalRun = await pollRes.json();\n    if (finalRun.status === 'success') {\n      return [{ json: { ...input, run: finalRun, final_status: 'success', run_retries_used: retry, poll_attempts: attempts } }];\n    }\n    if (finalRun.status === 'failed') {\n      failureReason = finalRun.error_message || 'Run failed';\n      break;\n    }\n    await new Promise((resolve) => setTimeout(resolve, pollIntervalSeconds * 1000));\n  }\n  retry += 1;\n}\nreturn [{ json: { ...input, run: finalRun, final_status: 'failed', run_retries_used: Math.max(0, retry - 1), failure_reason: failureReason || 'Unknown stage failure' } }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Stage Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        110,
+        140
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.final_status}}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "6",
+      "name": "Notify Stage Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        330,
+        70
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: 'success', workflow: $workflow.name, stage_name: $json.stage_name, run_id: ($json.run || {}).run_id, retries_used: $json.run_retries_used || 0, output_metrics_json: ($json.run || {}).output_metrics_json || {} }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "7",
+      "name": "Notify Stage Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        330,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.notification_webhook_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ status: 'failed', workflow: $workflow.name, stage_name: $json.stage_name, run_id: ($json.run || {}).run_id, retries_used: $json.run_retries_used || 0, error_message: ($json.run || {}).error_message || $json.failure_reason || 'Stage failed' }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Stage Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Stage Inputs": {
+      "main": [
+        [
+          {
+            "node": "Build Stage Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Stage Request": {
+      "main": [
+        [
+          {
+            "node": "Run Stage + Poll + Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Stage + Poll + Retry": {
+      "main": [
+        [
+          {
+            "node": "Stage Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Success?": {
+      "main": [
+        [
+          {
+            "node": "Notify Stage Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Stage Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "active": false,
+  "versionId": "step7-stage-retry-v1"
+}

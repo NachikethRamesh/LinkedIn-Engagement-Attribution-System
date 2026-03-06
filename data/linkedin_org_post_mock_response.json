@@ -1,0 +1,20 @@
+{
+  "organization_name": "<REDACTED_NAME>",
+  "author_name": "Placeholder Company",
+  "post_url": "https://www.linkedin.com/posts/<REDACTED_POST>",
+  "created_at": "2026-02-20T15:30:00Z",
+  "text": "Shipped our social attribution engine foundation with deterministic matching and explainable scoring.",
+  "topic": "Social Attribution Engine",
+  "cta_url": "https://placeholder-company.example/social-attribution-engine",
+  "counts": {
+    "impressions": 1820,
+    "reactions": 96,
+    "comments": 18,
+    "shares": 7,
+    "clicks": 23
+  },
+  "api_metadata": {
+    "api_product": "organization_community_management",
+    "api_version": "v2-simulated"
+  }
+}
