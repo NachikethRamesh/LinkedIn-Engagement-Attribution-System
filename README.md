@@ -1,4 +1,4 @@
-# social-attribution-engine (MVP foundation)
+# LinkedIn-attribution-engine (Prototype)
 
 Lightweight local backend foundation for attributing organic LinkedIn engagement to account-level pipeline influence.
 
